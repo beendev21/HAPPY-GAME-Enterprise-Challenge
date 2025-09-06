@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenHorizon | Dashboard de Projeção Exponencial</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.7.0/math.min.js"></script>
+    <style>
+        /* Estilos para um visual mais futurista */
+        body {
+            font-family: 'Inter', sans-serif; /* Fonte moderna */
+            background-color: #1a202c; /* Fundo escuro */
+            color: #e2e8f0; /* Texto claro */
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); /* Gradiente mais vibrante */
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); /* Sombra mais pronunciada */
+        }
+        .card-hover {
+            transition: all 0.3s ease;
+            background-color: #2d3748; /* Fundo dos cards mais escuro */
+            border: 1px solid rgba(100, 116, 139, 0.3); /* Borda sutil */
+        }
+        .card-hover:hover {
+            transform: translateY(-8px) scale(1.02); /* Efeito de levitação mais acentuado */
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); /* Sombra mais intensa no hover */
+            border-color: #667eea; /* Borda colorida no hover */
+        }
+        /* Estilos para os sliders (input range) */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-runnable-track {
+            background: #4a5568; /* Cor da trilha */
+            border-radius: 0.5rem;
+            height: 0.5rem;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            margin-top: -0.5rem; /* Centraliza o thumb na trilha */
+            background-color: #667eea; /* Cor do thumb */
+            height: 1.5rem;
+            width: 1.5rem;
+            border-radius: 50%;
+            border: 2px solid #a3bffa; /* Borda para contraste */
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.3); /* Anel de foco */
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        input[type="range"]:focus::-webkit-slider-thumb {
+            box-shadow: 0 0 0 6px rgba(102, 126, 234, 0.5); /* Anel de foco maior */
+        }
+        input[type="range"]::-moz-range-track {
+            background: #4a5568;
+            border-radius: 0.5rem;
+            height: 0.5rem;
+        }
+        input[type="range"]::-moz-range-thumb {
+            background-color: #667eea;
+            height: 1.5rem;
+            width: 1.5rem;
+            border-radius: 50%;
+            border: 2px solid #a3bffa;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.3);
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        input[type="range"]:focus::-moz-range-thumb {
+            box-shadow: 0 0 0 6px rgba(102, 126, 234, 0.5);
+        }
+        /* Cores para os botões de gráfico */
+        .btn-chart-active {
+            background-color: #667eea !important;
+            color: white !important;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        .btn-chart-inactive {
+            background-color: #4a5568 !important;
+            color: #e2e8f0 !important;
+        }
+        /* Melhoria de contraste para textos */
+        .text-gray-700 { color: #cbd5e0; } /* Mais claro */
+        .text-gray-800 { color: #e2e8f0; } /* Mais claro */
+        .text-gray-500 { color: #a0aec0; } /* Mais claro */
+        .text-gray-600 { color: #a0aec0; } /* Mais claro */
+        .bg-indigo-50 { background-color: #4a5568; color: #e2e8f0; } /* Fundo escuro */
+        .bg-purple-50 { background-color: #5a4a68; color: #e2e8f0; } /* Fundo escuro */
+        .bg-blue-50 { background-color: #4a5a68; color: #e2e8f0; } /* Fundo escuro */
+        .bg-green-50 { background-color: #4a685a; color: #e2e8f0; } /* Fundo escuro */
+        .bg-gray-100 { background-color: #4a5568; color: #e2e8f0; } /* Fundo escuro */
+        .bg-red-50 { background-color: #684a4a; color: #e2e8f0; } /* Fundo escuro */
+        .bg-gray-50 { background-color: #2d3748; } /* Fundo da tabela */
+        .divide-gray-200 > * + * { border-color: #4a5568; } /* Divisores mais escuros */
+        .text-green-600 { color: #68d391; } /* Verde mais vibrante */
+        .text-red-600 { color: #fc8181; } /* Vermelho mais vibrante */
+        .text-purple-800 { color: #d6bcfa; }
+        .text-blue-800 { color: #90cdf4; }
+        .text-green-800 { color: #9ae6b4; }
+    </style>
+    <!-- Link para a fonte Inter do Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gray-900 text-gray-100">
+    <!-- Skip Link para acessibilidade -->
+    <a href="#main-content" class="sr-only focus:not-sr-only absolute top-0 left-0 bg-blue-600 text-white p-3 rounded-br-lg z-50">Pular para o conteúdo principal</a>
+
+    <header class="gradient-bg text-white py-8 px-4" role="banner" aria-label="Cabeçalho do Dashboard OpenHorizon">
+        <div class="max-w-6xl mx-auto">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-4xl font-bold">OpenHorizon</h1>
+                    <p class="opacity-80 mt-2 text-lg">Projeções dinâmicas para crescimento de usuários e receita</p>
+                </div>
+                <img src="imagens/Logo.png" alt="Ícone de gráfico de crescimento, representando tendências positivas" class="h-20 w-20 rounded-full bg-white p-2 shadow-lg">
+            </div>
+        </div>
+    </header>
+
+    <main id="main-content" class="max-w-6xl mx-auto px-4 py-12" role="main">
+        <!-- MODELAGEM MATEMÁTICA -->
+        <section class="bg-gray-800 rounded-xl shadow-lg p-8 mb-12 card-hover" aria-labelledby="math-model-heading">
+            <h2 id="math-model-heading" class="text-3xl font-semibold text-blue-300 mb-6">🔍 Modelagem Matemática Aplicada</h2>
+            
+            <div class="grid md:grid-cols-2 gap-8">
+                <div>
+                    <p class="text-gray-300 mb-6 text-lg">Para modelar o crescimento exponencial no projeto, utilizamos a fórmula de juros compostos, adaptada para projeções de negócios:</p>
+                    <div class="bg-indigo-700 p-6 rounded-lg shadow-inner">
+                        <p class="font-mono text-3xl mb-3 text-yellow-300">N(t) = N₀ × (1 + r)<sup>t</sup></p>
+                        <p class="text-sm text-gray-300">Este modelo descreve o crescimento discreto ao longo do tempo.</p>
+                    </div>
+                    <div class="mt-6 text-base text-gray-400">
+                        <p class="font-medium mb-3 text-gray-200">Onde:</p>
+                        <ul class="space-y-2 list-disc list-inside">
+                            <li><span class="font-semibold text-blue-200">N(t)</span>: Valor projetado no tempo t (ex: número de usuários, receita total).</li>
+                            <li><span class="font-semibold text-blue-200">N₀</span>: Valor inicial (ex: 100 usuários, R$16.300 de investimento).</li>
+                            <li><span class="font-semibold text-blue-200">r</span>: Taxa de crescimento por período (ex: 15% ao mês).</li>
+                            <li><span class="font-semibold text-blue-200">t</span>: Tempo decorrido em períodos (ex: meses).</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div>
+                    <p class="text-gray-300 mb-4 text-lg">Aplicação prática com dados do projeto:</p>
+                    <div class="space-y-6">
+                        <div class="p-5 bg-purple-700 rounded-lg shadow-md">
+                            <p class="font-medium text-purple-200 text-xl">Projeção de Usuários</p>
+                            <p class="text-base mt-2 text-gray-200">100 × (1.15)<sup>12</sup> = <span class="font-bold text-yellow-300">535 usuários</span> em 12 meses</p>
+                            <p class="text-xs mt-1 text-purple-300">Baseado no modelo exponencial discreto de crescimento.</p>
+                        </div>
+                        
+                        <div class="p-5 bg-blue-700 rounded-lg shadow-md">
+                            <p class="font-medium text-blue-200 text-xl">Crescimento de Custos</p>
+                            <p class="text-base mt-2 text-gray-200">Custos mensais projetados de R$800 para <span class="font-bold text-yellow-300">R$1.243</span> em 12 meses</p>
+                            <p class="text-xs mt-1 text-blue-300">Considerando a escalabilidade de infraestrutura e licenças.</p>
+                        </div>
+                        
+                        <div class="p-5 bg-green-700 rounded-lg shadow-md">
+                            <p class="font-medium text-green-200 text-xl">ROI Esperado</p>
+                            <p class="text-base mt-2 text-gray-200">
+                            Payback estimado em <span class="font-bold text-yellow-300">~8 meses</span><br>
+                            <span class="text-xs text-green-300">(Considerando custo inicial de R$16.300)</span>
+                        </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SIMULADOR INTERATIVO -->
+        <section class="grid md:grid-cols-3 gap-8 mb-12" aria-labelledby="interactive-simulator-heading">
+            <h2 id="interactive-simulator-heading" class="sr-only">Simulador Interativo de Projeções</h2>
+
+            <!-- Controle de Usuários -->
+            <div class="bg-gray-800 p-8 rounded-xl shadow-md card-hover" role="group" aria-labelledby="users-growth-heading">
+                <div class="flex items-center mb-5">
+                    <div class="bg-indigo-600 p-3 rounded-lg mr-4 shadow-lg">
+                        <img src="imagens/Crescimento de Usuários.png" alt="Ícone de três pessoas, representando usuários" class="h-8 w-8">
+                    </div>
+                    <h3 id="users-growth-heading" class="text-2xl font-semibold text-indigo-300">Crescimento de Usuários</h3>
+                </div>
+                
+                <div class="space-y-6">
+                    <div>
+                        <label for="baseUsers" class="block text-sm font-medium text-gray-300 mb-2">Usuários Iniciais (N₀)</label>
+                        <input type="range" min="50" max="500" value="100" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer" id="baseUsers" 
+                               aria-valuemin="50" aria-valuemax="500" aria-valuenow="100" aria-valuetext="100 usuários" aria-label="Definir o número de usuários iniciais">
+                        <div class="flex justify-between text-xs text-gray-400 mt-2">
+                            <span>50</span>
+                            <span id="baseUsersValue" aria-live="polite">100</span>
+                            <span>500</span>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label for="growthRate" class="block text-sm font-medium text-gray-300 mb-2">Taxa de Crescimento (r) %/mês</label>
+                        <input type="range" min="1" max="30" value="15" step="0.5" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer" id="growthRate"
+                               aria-valuemin="1" aria-valuemax="30" aria-valuenow="15" aria-valuetext="15 por cento ao mês" aria-label="Definir a taxa de crescimento mensal">
+                        <div class="flex justify-between text-xs text-gray-400 mt-2">
+                            <span>1%</span>
+                            <span id="growthRateValue" aria-live="polite">15%</span>
+                            <span>30%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="pt-6 border-t border-gray-700">
+                        <p class="text-base text-gray-400">Com estes parâmetros, projetamos:</p>
+                        <p class="font-bold text-2xl mt-2 text-yellow-300">
+                            <span id="projectedUsers" aria-live="polite">604</span> usuários em <span id="projectedUsersTime">12</span> meses
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Controle de Receita -->
+            <div class="bg-gray-800 p-8 rounded-xl shadow-md card-hover" role="group" aria-labelledby="revenue-projection-heading">
+                <div class="flex items-center mb-5">
+                    <div class="bg-green-600 p-3 rounded-lg mr-4 shadow-lg">
+                        <img src="imagens/Projeção de Receita.png" alt="Ícone de gráfico de barras verde, representando receita e lucro" class="h-8 w-8">
+                    </div>
+                    <h3 id="revenue-projection-heading" class="text-2xl font-semibold text-green-300">Projeção de Receita</h3>
+                </div>
+                
+                <div class="space-y-6">
+                    <div>
+                        <label for="arpu" class="block text-sm font-medium text-gray-300 mb-2">ARPU (Receita por Usuário) R$</label>
+                        <input type="range" min="5" max="50" value="10" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer" id="arpu"
+                               aria-valuemin="5" aria-valuemax="50" aria-valuenow="10" aria-valuetext="10 reais por usuário" aria-label="Definir a receita média por usuário">
+                        <div class="flex justify-between text-xs text-gray-400 mt-2">
+                            <span>R$5</span>
+                            <span id="arpuValue" aria-live="polite">R$10</span>
+                            <span>R$50</span>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label for="timePeriod" class="block text-sm font-medium text-gray-300 mb-2">Período de Projeção (meses)</label>
+                        <input type="range" min="3" max="36" value="12" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer" id="timePeriod"
+                               aria-valuemin="3" aria-valuemax="36" aria-valuenow="12" aria-valuetext="12 meses" aria-label="Definir o período de projeção em meses">
+                        <div class="flex justify-between text-xs text-gray-400 mt-2">
+                            <span>3</span>
+                            <span id="timePeriodValue" aria-live="polite">12</span>
+                            <span>36</span>
+                        </div>
+                    </div>
+                    
+                    <div class="pt-6 border-t border-gray-700">
+                        <p class="text-base text-gray-400">Receita total projetada:</p>
+                        <p class="font-bold text-2xl mt-2 text-yellow-300">
+                            R$ <span id="projectedRevenue" aria-live="polite">7.248</span> em <span id="projectedRevenueTime">12</span> meses
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Custo e ROI -->
+            <div class="bg-gray-800 p-8 rounded-xl shadow-md card-hover" role="group" aria-labelledby="costs-roi-heading">
+                <div class="flex items-center mb-5">
+                    <div class="bg-red-600 p-3 rounded-lg mr-4 shadow-lg">
+                        <img src="imagens/ROI.png" alt="Ícone de gráfico de pizza vermelho, representando custos e despesas" class="h-8 w-8">
+                    </div>
+                    <h3 id="costs-roi-heading" class="text-2xl font-semibold text-red-300">Custos e ROI</h3>
+                </div>
+                
+                <div class="space-y-6">
+                    <div>
+                        <p class="text-base font-medium text-gray-300 mb-3">Investimento Inicial:</p>
+                        <div class="bg-gray-700 p-4 rounded-lg">
+                            <p class="font-bold text-xl text-yellow-300">R$ 16.300,00</p>
+                            <p class="text-xs text-gray-400 mt-1">(Baseado no cronograma de desenvolvimento do projeto)</p>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <p class="text-base font-medium text-gray-300 mb-3">Custos Mensais Estimados:</p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-red-700 p-3 rounded">
+                                <p class="text-red-200 text-sm">Servidores</p>
+                                <p class="font-bold text-lg text-yellow-300">R$ <span id="serverCost" aria-live="polite">500</span></p>
+                            </div>
+                            <div class="bg-red-700 p-3 rounded">
+                                <p class="text-red-200 text-sm">Licenças</p>
+                                <p class="font-bold text-lg text-yellow-300">R$ <span id="licenseCost" aria-live="polite">300</span></p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="pt-6 border-t border-gray-700">
+                        <p class="text-base font-medium text-gray-300">Retorno sobre Investimento (ROI):</p>
+                        <div class="flex items-center mt-3">
+                            <div class="flex-1 bg-gray-700 rounded-full h-3">
+                                <div class="bg-green-500 h-3 rounded-full transition-all duration-500 ease-out" style="width: 65%" id="roiBar" role="progressbar" aria-valuenow="65" aria-valuemin="0" aria-valuemax="100" aria-label="Progresso do ROI"></div>
+                            </div>
+                            <span class="ml-3 text-lg font-bold text-yellow-300" id="roiTime" aria-live="polite">8 meses</span>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-2" id="roiDetail" aria-live="polite">Retorno previsto em 8 meses</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- GRÁFICO DE PROJEÇÃO -->
+        <section class="bg-gray-800 rounded-xl shadow-lg p-8 mb-12 card-hover" aria-labelledby="chart-heading">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+                <h2 id="chart-heading" class="text-3xl font-semibold text-blue-300 mb-6 md:mb-0">Projeção de Crescimento Detalhada</h2>
+                <div class="flex space-x-3" role="group" aria-label="Opções de visualização do gráfico">
+                    <button class="px-6 py-3 bg-indigo-600 text-white rounded-lg text-base font-medium shadow-lg btn-chart-active" id="btnChartUsers" aria-pressed="true">Usuários</button>
+                    <button class="px-6 py-3 bg-gray-700 text-gray-300 rounded-lg text-base font-medium shadow-md btn-chart-inactive" id="btnChartRevenue" aria-pressed="false">Receita</button>
+                    <button class="px-6 py-3 bg-gray-700 text-gray-300 rounded-lg text-base font-medium shadow-md btn-chart-inactive" id="btnChartCosts" aria-pressed="false">Custos</button>
+                </div>
+            </div>
+            
+            <div class="h-96">
+                <canvas id="exponentialChart" role="img" aria-label="Gráfico de projeção exponencial de usuários, receita ou custos ao longo do tempo."></canvas>
+            </div>
+        </section>
+
+        <!-- TABELA DETALHADA -->
+        <section class="bg-gray-800 rounded-xl shadow-lg overflow-hidden mb-12 card-hover" aria-labelledby="table-heading">
+            <div class="p-8">
+                <h2 id="table-heading" class="text-3xl font-semibold text-blue-300 mb-4">Detalhamento Mensal das Projeções</h2>
+                <p class="text-base text-gray-400 mb-6">Projeção baseada nos parâmetros atuais, utilizando o modelo exponencial contínuo \$N(t) = N₀ \\times e^{(r \\times t)}\$.</p>
+            </div>
+            
+            <div class="overflow-x-auto" role="region" aria-live="polite" aria-atomic="true" tabindex="0">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-700">
+                        <tr>
+                            <th scope="col" class="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Mês</th>
+                            <th scope="col" class="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Usuários</th>
+                            <th scope="col" class="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Receita</th>
+                            <th scope="col" class="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Custos</th>
+                            <th scope="col" class="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Lucro</th>
+                            <th scope="col" class="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Acumulado</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-gray-800 divide-y divide-gray-700" id="projectionTable">
+                        <!-- Preenchido por JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-gray-900 text-gray-400 py-6 px-4 text-center" role="contentinfo">
+        <p>&copy; 2025 OpenHorizon. Todos os direitos reservados.</p>
+        <p class="mt-2 text-sm">Desenvolvido com foco em performance e acessibilidade.</p>
+        <!-- Botão GitHub adicionado aqui -->
+        <div class="mt-4">
+            <a href="https://github.com/brenosilvavale2025-design?tab=repositories" target="_blank" rel="noopener noreferrer" class="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-gray-700 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                <svg
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    height="28"
+                    width="28"
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="mr-2"
+                >
+                    <path
+                        d="M12.001 2C6.47598 2 2.00098 6.475 2.00098 12C2.00098 16.425 4.86348 20.1625 8.83848 21.4875C9.33848 21.575 9.52598 21.275 9.52598 21.0125C9.52598 20.775 9.51348 19.9875 9.51348 19.15C7.00098 19.6125 6.35098 18.5375 6.15098 17.975C6.03848 17.6875 5.55098 16.8 5.12598 16.5625C4.77598 16.375 4.27598 15.9125 5.11348 15.9C5.90098 15.8875 6.46348 16.625 6.65098 16.925C7.55098 18.4375 8.98848 18.0125 9.56348 17.75C9.65098 17.1 9.91348 16.6625 10.201 16.4125C7.97598 16.1625 5.65098 15.3 5.65098 11.475C5.65098 10.3875 6.03848 9.4875 6.67598 8.7875C6.57598 8.5375 6.22598 7.5125 6.77598 6.1375C6.77598 6.1375 7.61348 5.875 9.52598 7.1625C10.326 6.9375 11.176 6.825 12.026 6.825C12.876 6.825 13.726 6.9375 14.526 7.1625C16.4385 5.8625 17.276 6.1375 17.276 6.1375C17.826 7.5125 17.476 8.5375 17.376 8.7875C18.0135 9.4875 18.401 10.375 18.401 11.475C18.401 15.3125 16.0635 16.1625 13.8385 16.4125C14.201 16.725 14.5135 17.325 14.5135 18.2625C14.5135 19.6 14.501 20.675 14.501 21.0125C14.501 21.275 14.6885 21.5875 15.1885 21.4875C19.259 20.1133 21.9999 16.2963 22.001 12C22.001 6.475 17.526 2 12.001 2Z"
+                    ></path>
+                </svg>
+                <span>GitHub</span>
+            </a>
+        </div>
+    </footer>
+
+    <script>
+        // Elementos do DOM
+        const baseUsersInput = document.getElementById('baseUsers');
+        const growthRateInput = document.getElementById('growthRate');
+        const arpuInput = document.getElementById('arpu');
+        const timePeriodInput = document.getElementById('timePeriod');
+        
+        const baseUsersValue = document.getElementById('baseUsersValue');
+        const growthRateValue = document.getElementById('growthRateValue');
+        const arpuValue = document.getElementById('arpuValue');
+        const timePeriodValue = document.getElementById('timePeriodValue');
+        const projectedUsers = document.getElementById('projectedUsers');
+        const projectedUsersTime = document.getElementById('projectedUsersTime');
+        const projectedRevenue = document.getElementById('projectedRevenue');
+        const projectedRevenueTime = document.getElementById('projectedRevenueTime');
+        const serverCost = document.getElementById('serverCost');
+        const licenseCost = document.getElementById('licenseCost');
+        const roiTime = document.getElementById('roiTime');
+        const roiBar = document.getElementById('roiBar');
+        const roiDetail = document.getElementById('roiDetail');
+        
+        const projectionTable = document.getElementById('projectionTable');
+        
+        const btnChartUsers = document.getElementById('btnChartUsers');
+        const btnChartRevenue = document.getElementById('btnChartRevenue');
+        const btnChartCosts = document.getElementById('btnChartCosts');
+
+        // Configuração do gráfico
+        const ctx = document.getElementById('exponentialChart').getContext('2d');
+        let exponentialChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: Array.from({length: 12}, (_, i) => `Mês ${i+1}`),
+                datasets: [{
+                    label: 'Usuários',
+                    data: [],
+                    borderColor: '#667eea', /* Cor mais vibrante */
+                    backgroundColor: 'rgba(102, 126, 234, 0.2)', /* Fundo transparente */
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: '#667eea',
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: '#667eea',
+                    pointRadius: 5,
+                    pointHoverRadius: 7
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `${context.dataset.label}: ${context.raw.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+                            }
+                        },
+                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        borderColor: '#667eea',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        displayColors: false
+                    },
+                    legend: {
+                        display: true,
+                        labels: {
+                            color: '#e2e8f0', /* Cor da legenda */
+                            font: {
+                                size: 14
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            color: 'rgba(100, 116, 139, 0.2)', /* Linhas de grade mais suaves */
+                            borderColor: 'rgba(100, 116, 139, 0.3)'
+                        },
+                        ticks: {
+                            color: '#a0aec0' /* Cor dos rótulos do eixo X */
+                        },
+                        title: {
+                            display: true,
+                            text: 'Tempo (Meses)',
+                            color: '#e2e8f0',
+                            font: {
+                                size: 16,
+                                weight: 'bold'
+                            }
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(100, 116, 139, 0.2)',
+                            borderColor: 'rgba(100, 116, 139, 0.3)'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return value.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+                            },
+                            color: '#a0aec0' /* Cor dos rótulos do eixo Y */
+                        },
+                        title: {
+                            display: true,
+                            text: 'Valor', /* Será atualizado dinamicamente */
+                            color: '#e2e8f0',
+                            font: {
+                                size: 16,
+                                weight: 'bold'
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Event listeners
+        baseUsersInput.addEventListener('input', updateProjection);
+        growthRateInput.addEventListener('input', updateProjection);
+        arpuInput.addEventListener('input', updateProjection);
+        timePeriodInput.addEventListener('input', updateProjection);
+        
+        btnChartUsers.addEventListener('click', () => updateChart('users'));
+        btnChartRevenue.addEventListener('click', () => updateChart('revenue'));
+        btnChartCosts.addEventListener('click', () => updateChart('costs'));
+
+        // Inicialização
+        updateProjection();
+
+        // Função para atualizar o aria-valuetext dos sliders
+        function updateSliderAriaText(inputElement, valueElement, unit = '') {
+            inputElement.setAttribute('aria-valuetext', `${valueElement.textContent} ${unit}`);
+        }
+
+        // Função principal de atualização
+        function updateProjection() {
+            // Atualiza valores exibidos
+            baseUsersValue.textContent = baseUsersInput.value;
+            growthRateValue.textContent = growthRateInput.value + '%';
+            arpuValue.textContent = 'R$' + arpuInput.value;
+            timePeriodValue.textContent = timePeriodInput.value;
+            
+            // Atualiza aria-valuetext para leitores de tela
+            updateSliderAriaText(baseUsersInput, baseUsersValue, 'usuários');
+            updateSliderAriaText(growthRateInput, growthRateValue, 'ao mês');
+            updateSliderAriaText(arpuInput, arpuValue, 'por usuário');
+            updateSliderAriaText(timePeriodInput, timePeriodValue, 'meses');
+
+            // Parâmetros do cálculo
+            const N0 = parseInt(baseUsersInput.value);
+            const r = parseFloat(growthRateInput.value) / 100;
+            const ARPU = parseInt(arpuInput.value);
+            const months = parseInt(timePeriodInput.value);
+            const initialInvestment = 16300;
+            const baseServerCost = 500;
+            const baseLicenseCost = 300;
+            
+            // Arrays para armazenar os dados
+            const monthsArray = Array.from({length: months}, (_, i) => i + 1);
+            const usersArray = [];
+            const revenueArray = [];
+            const serverCostArray = [];
+            const licenseCostArray = [];
+            const totalCostArray = [];
+            const profitArray = [];
+            const accumulatedProfitArray = [];
+            
+            let accumulatedProfit = -initialInvestment; // Inicia negativo com o investimento inicial
+            let roiAchievedMonth = months + 1; // Valor maior que meses para indicar não alcançado
+            
+            // Preenche os arrays com projeções
+            monthsArray.forEach(month => {
+                // Cálculo exponencial de usuários (usando Math.exp para modelo contínuo, como na descrição da tabela)
+                // Embora o texto da fórmula use (1+r)^t, a descrição da tabela menciona e^(r*t).
+                // Para consistência com a descrição da tabela, usaremos math.exp.
+                const users = N0 * math.exp(r * month); 
+                usersArray.push(users);
+                
+                // Receita baseada nos usuários
+                const revenue = users * ARPU;
+                revenueArray.push(revenue);
+                
+                // Custos escalam com número de usuários (função degrau)
+                const serverCostMonth = baseServerCost * (1 + Math.floor(users / 300) * 0.25);
+                const licenseCostMonth = baseLicenseCost * (1 + Math.floor(users / 500) * 0.2);
+                const totalCostMonth = serverCostMonth + licenseCostMonth;
+                
+                serverCostArray.push(serverCostMonth);
+                licenseCostArray.push(licenseCostMonth);
+                totalCostArray.push(totalCostMonth);
+                
+                // Lucro e acumulado
+                const profit = revenue - totalCostMonth;
+                accumulatedProfit += profit;
+                profitArray.push(profit);
+                accumulatedProfitArray.push(accumulatedProfit);
+                
+                // Verifica ROI (quando acumulado vira positivo)
+                if (accumulatedProfit >= 0 && roiAchievedMonth > month) {
+                    roiAchievedMonth = month;
+                }
+            });
+            
+            // Atualiza valores nos cards
+            projectedUsers.textContent = Math.round(usersArray[usersArray.length-1]).toLocaleString('pt-BR');
+            projectedUsersTime.textContent = months;
+            projectedRevenue.textContent = Math.round(revenueArray[revenueArray.length-1]).toLocaleString('pt-BR');
+            projectedRevenueTime.textContent = months;
+            serverCost.textContent = Math.round(serverCostArray[serverCostArray.length-1]).toLocaleString('pt-BR');
+            licenseCost.textContent = Math.round(licenseCostArray[licenseCostArray.length-1]).toLocaleString('pt-BR');
+            
+            // Atualiza ROI
+            if (roiAchievedMonth <= months) {
+                roiTime.textContent = roiAchievedMonth + ' meses';
+                roiDetail.textContent = `Retorno obtido no mês ${roiAchievedMonth}.`;
+                const roiPercentage = (roiAchievedMonth / months) * 100;
+                roiBar.style.width = Math.min(100, roiPercentage) + '%';
+                roiBar.className = 'bg-green-500 h-3 rounded-full transition-all duration-500 ease-out';
+                roiBar.setAttribute('aria-valuenow', Math.min(100, Math.round(roiPercentage)));
+                roiBar.setAttribute('aria-label', `Progresso do ROI: ${Math.min(100, Math.round(roiPercentage))}%`);
+            } else {
+                roiTime.textContent = months + ' meses+';
+                roiDetail.textContent = 'Retorno não alcançado no período de projeção.';
+                roiBar.style.width = '100%';
+                roiBar.className = 'bg-yellow-500 h-3 rounded-full transition-all duration-500 ease-out';
+                roiBar.setAttribute('aria-valuenow', 100);
+                roiBar.setAttribute('aria-label', `Progresso do ROI: 100% (não alcançado)`);
+            }
+            
+            // Atualiza tabela
+            updateTable(monthsArray, usersArray, revenueArray, totalCostArray, profitArray, accumulatedProfitArray);
+            
+            // Atualiza gráfico (mantém o tipo selecionado ou volta para usuários)
+            const currentChartType = document.querySelector('.btn-chart-active').id.replace('btnChart', '').toLowerCase();
+            updateChart(currentChartType);
+        }
+        
+        // Atualiza o gráfico conforme o tipo selecionado
+        function updateChart(type) {
+            const months = parseInt(timePeriodInput.value);
+            const N0 = parseInt(baseUsersInput.value);
+            const r = parseFloat(growthRateInput.value) / 100;
+            const ARPU = parseInt(arpuInput.value);
+            
+            const labels = Array.from({length: months}, (_, i) => `Mês ${i+1}`);
+            let data = [];
+            let label = '';
+            let color = '';
+            
+            // Resetar classes dos botões
+            btnChartUsers.classList.remove('btn-chart-active');
+            btnChartUsers.classList.add('btn-chart-inactive');
+            btnChartUsers.setAttribute('aria-pressed', 'false');
+            btnChartRevenue.classList.remove('btn-chart-active');
+            btnChartRevenue.classList.add('btn-chart-inactive');
+            btnChartRevenue.setAttribute('aria-pressed', 'false');
+            btnChartCosts.classList.remove('btn-chart-active');
+            btnChartCosts.classList.add('btn-chart-inactive');
+            btnChartCosts.setAttribute('aria-pressed', 'false');
+
+            switch(type) {
+                case 'users':
+                    data = Array.from({length: months}, (_, i) => 
+                        Math.round(N0 * math.exp(r * (i+1))) // Usando math.exp para consistência com a descrição da tabela
+                    );
+                    label = 'Usuários';
+                    color = '#667eea'; // Cor primária
+                    btnChartUsers.classList.add('btn-chart-active');
+                    btnChartUsers.classList.remove('btn-chart-inactive');
+                    btnChartUsers.setAttribute('aria-pressed', 'true');
+                    break;
+                    
+                case 'revenue':
+                    data = Array.from({length: months}, (_, i) => {
+                        const users = N0 * math.exp(r * (i+1));
+                        return Math.round(users * ARPU);
+                    });
+                    label = 'Receita (R$)';
+                    color = '#48bb78'; // Verde
+                    btnChartRevenue.classList.add('btn-chart-active');
+                    btnChartRevenue.classList.remove('btn-chart-inactive');
+                    btnChartRevenue.setAttribute('aria-pressed', 'true');
+                    break;
+                    
+                case 'costs':
+                    const baseServerCost = 500;
+                    const baseLicenseCost = 300;
+                    data = Array.from({length: months}, (_, i) => {
+                        const users = N0 * math.exp(r * (i+1));
+                        const serverCost = baseServerCost * (1 + Math.floor(users / 300) * 0.25);
+                        const licenseCost = baseLicenseCost * (1 + Math.floor(users / 500) * 0.2);
+                        return Math.round(serverCost + licenseCost);
+                    });
+                    label = 'Custos (R$)';
+                    color = '#f56565'; // Vermelho
+                    btnChartCosts.classList.add('btn-chart-active');
+                    btnChartCosts.classList.remove('btn-chart-inactive');
+                    btnChartCosts.setAttribute('aria-pressed', 'true');
+                    break;
+            }
+            
+            exponentialChart.data.labels = labels;
+            exponentialChart.data.datasets = [{
+                label: label,
+                data: data,
+                borderColor: color,
+                backgroundColor: color + '33', /* 20% de opacidade */
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4,
+                pointBackgroundColor: color,
+                pointBorderColor: '#fff',
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: color,
+                pointRadius: 5,
+                pointHoverRadius: 7
+            }];
+            exponentialChart.options.scales.y.title.text = label;
+            exponentialChart.update();
+        }
+        
+        // Atualiza a tabela de projeção
+        function updateTable(months, users, revenue, costs, profit, accumulated) {
+            let tableHTML = '';
+            
+            months.forEach((month, index) => {
+                // Mostra todos os meses se forem poucos (até 12), ou mostra a cada 3 meses se forem muitos,
+                // e sempre mostra o primeiro e o último mês.
+                if (months.length <= 12 || month === 1 || month === months.length || (month % 3 === 0 && month !== months.length)) {
+                    tableHTML += `
+                        <tr class="${index % 2 === 0 ? 'bg-gray-800' : 'bg-gray-700'}">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-100">${month}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">${Math.round(users[index]).toLocaleString('pt-BR')}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">R$ ${Math.round(revenue[index]).toLocaleString('pt-BR')}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">R$ ${Math.round(costs[index]).toLocaleString('pt-BR')}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm ${profit[index] >= 0 ? 'text-green-400 font-medium' : 'text-red-400 font-medium'}">R$ ${Math.round(profit[index]).toLocaleString('pt-BR')}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm ${accumulated[index] >= 0 ? 'text-green-400 font-medium' : 'text-gray-400'}">R$ ${Math.round(accumulated[index]).toLocaleString('pt-BR')}</td>
+                        </tr>
+                    `;
+                }
+            });
+            
+            projectionTable.innerHTML = tableHTML;
+        }
+    </script>
+</body>
+</html>
